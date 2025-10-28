@@ -1,0 +1,503 @@
+#!/usr/bin/env kuyil
+
+# Kuyil Integration for SQLite Utils Library
+# This file demonstrates how to use SQLite database operations from Kuyil
+
+# Load the SQLite library
+load_library("./libsqlite_utils.so")
+
+# Database connection for demos
+let db = null
+
+# Initialize database with sample data
+function init_database() {
+    print("=== Initializing SQLite Database ===")
+    
+    # Open in-memory database for testing
+    db = sqlite_open_database(":memory:", SQLITE_OPEN_READWRITE_FLAG | SQLITE_OPEN_CREATE_FLAG)
+    if (db == null) {
+        print("✗ Failed to open database: " + sqlite_get_last_error())
+        return false
+    }
+    
+    print("✓ Database opened successfully")
+    
+    # Create sample tables
+    let create_users = "CREATE TABLE users (" +
+                      "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                      "name TEXT NOT NULL," +
+                      "email TEXT UNIQUE," +
+                      "age INTEGER," +
+                      "balance REAL," +
+                      "created_at TEXT DEFAULT CURRENT_TIMESTAMP" +
+                      ")"
+    
+    let create_orders = "CREATE TABLE orders (" +
+                       "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                       "user_id INTEGER REFERENCES users(id)," +
+                       "product TEXT NOT NULL," +
+                       "amount REAL NOT NULL," +
+                       "order_date TEXT DEFAULT CURRENT_TIMESTAMP" +
+                       ")"
+    
+    if (sqlite_execute_sql(db, create_users) >= 0) {
+        print("✓ Users table created")
+    } else {
+        print("✗ Failed to create users table: " + sqlite_get_last_error())
+        return false
+    }
+    
+    if (sqlite_execute_sql(db, create_orders) >= 0) {
+        print("✓ Orders table created")
+    } else {
+        print("✗ Failed to create orders table: " + sqlite_get_last_error())
+        return false
+    }
+    
+    # Insert sample data
+    let insert_users = "INSERT INTO users (name, email, age, balance) VALUES " +
+                      "('Alice Johnson', 'alice@example.com', 28, 1500.00)," +
+                      "('Bob Wilson', 'bob@example.com', 35, 2750.50)," +
+                      "('Carol Brown', 'carol@example.com', 42, 890.25)," +
+                      "('David Lee', 'david@example.com', 31, 3200.75)"
+    
+    let users_inserted = sqlite_execute_sql(db, insert_users)
+    if (users_inserted > 0) {
+        print("✓ Inserted " + users_inserted + " users")
+    } else {
+        print("✗ Failed to insert users: " + sqlite_get_last_error())
+        return false
+    }
+    
+    let insert_orders = "INSERT INTO orders (user_id, product, amount) VALUES " +
+                       "(1, 'Laptop', 999.99)," +
+                       "(2, 'Mouse', 29.99)," +
+                       "(2, 'Keyboard', 89.99)," +
+                       "(3, 'Monitor', 299.99)," +
+                       "(4, 'Headphones', 159.99)," +
+                       "(1, 'Webcam', 79.99)"
+    
+    let orders_inserted = sqlite_execute_sql(db, insert_orders)
+    if (orders_inserted > 0) {
+        print("✓ Inserted " + orders_inserted + " orders")
+    } else {
+        print("✗ Failed to insert orders: " + sqlite_get_last_error())
+        return false
+    }
+    
+    return true
+}
+
+# Test basic SQL queries
+function test_basic_queries() {
+    print("\n=== Testing Basic SQL Queries ===")
+    
+    # Simple SELECT query
+    let result = sqlite_execute_query(db, "SELECT * FROM users ORDER BY name")
+    if (result != null) {
+        print("✓ Query executed successfully")
+        print("  Columns: " + sqlite_result_column_count(result))
+        
+        # Display column names
+        print("  Column names:")
+        for (i = 0; i < sqlite_result_column_count(result); i++) {
+            let col_name = sqlite_result_column_name(result, i)
+            print("    " + i + ": " + col_name)
+        }
+        
+        # Iterate through rows
+        print("  Data rows:")
+        let row = sqlite_result_first_row(result)
+        let row_num = 1
+        while (row != null) {
+            let id = sqlite_row_get_int(row, 0, -1)
+            let name = sqlite_row_get_text(row, 1)
+            let email = sqlite_row_get_text(row, 2)
+            let age = sqlite_row_get_int(row, 3, 0)
+            let balance = sqlite_row_get_real(row, 4, 0.0)
+            
+            print("    Row " + row_num + ": ID=" + id + ", Name=" + name + ", Email=" + email + 
+                  ", Age=" + age + ", Balance=$" + balance)
+            
+            row_num++
+            row = sqlite_result_next_row(result)
+        }
+        
+        sqlite_free_result(result)
+    } else {
+        print("✗ Query failed: " + sqlite_get_last_error())
+    }
+    
+    # Aggregate query
+    result = sqlite_execute_query(db, "SELECT COUNT(*) as user_count, AVG(age) as avg_age, SUM(balance) as total_balance FROM users")
+    if (result != null) {
+        let row = sqlite_result_first_row(result)
+        if (row != null) {
+            let count = sqlite_row_get_int(row, 0, 0)
+            let avg_age = sqlite_row_get_real(row, 1, 0.0)
+            let total_balance = sqlite_row_get_real(row, 2, 0.0)
+            
+            print("✓ Statistics: " + count + " users, avg age " + avg_age + ", total balance $" + total_balance)
+        }
+        sqlite_free_result(result)
+    }
+}
+
+# Test prepared statements
+function test_prepared_statements() {
+    print("\n=== Testing Prepared Statements ===")
+    
+    # Prepare a parameterized query
+    let stmt = sqlite_prepare_statement(db, "SELECT * FROM users WHERE age > ? AND balance > ? ORDER BY name")
+    if (stmt != null) {
+        print("✓ Statement prepared successfully")
+        
+        # Bind parameters
+        if (sqlite_bind_int(stmt, 1, 30) && sqlite_bind_real(stmt, 2, 1000.0)) {
+            print("✓ Parameters bound successfully")
+            
+            # Execute the statement
+            let result = sqlite_execute_statement(stmt)
+            if (result != null) {
+                print("✓ Statement executed successfully")
+                
+                let row = sqlite_result_first_row(result)
+                let count = 0
+                while (row != null) {
+                    count++
+                    let name = sqlite_row_get_text(row, 1)
+                    let age = sqlite_row_get_int(row, 3, 0)
+                    let balance = sqlite_row_get_real(row, 4, 0.0)
+                    
+                    print("  Found: " + name + " (age " + age + ", balance $" + balance + ")")
+                    
+                    row = sqlite_result_next_row(result)
+                }
+                
+                print("  Total matching users: " + count)
+                sqlite_free_result(result)
+            } else {
+                print("✗ Statement execution failed: " + sqlite_get_last_error())
+            }
+        } else {
+            print("✗ Parameter binding failed: " + sqlite_get_last_error())
+        }
+        
+        # Test with different parameters
+        if (sqlite_reset_statement(stmt)) {
+            sqlite_clear_bindings(stmt)
+            sqlite_bind_int(stmt, 1, 25)
+            sqlite_bind_real(stmt, 2, 500.0)
+            
+            result = sqlite_execute_statement(stmt)
+            if (result != null) {
+                let row = sqlite_result_first_row(result)
+                let count = 0
+                while (row != null) {
+                    count++
+                    row = sqlite_result_next_row(result)
+                }
+                print("  Second query found " + count + " users")
+                sqlite_free_result(result)
+            }
+        }
+        
+        sqlite_finalize_statement(stmt)
+    } else {
+        print("✗ Statement preparation failed: " + sqlite_get_last_error())
+    }
+}
+
+# Test transactions
+function test_transactions() {
+    print("\n=== Testing Transactions ===")
+    
+    # Get initial balance for user 1
+    let result = sqlite_execute_query(db, "SELECT balance FROM users WHERE id = 1")
+    let initial_balance = 0.0
+    if (result != null) {
+        let row = sqlite_result_first_row(result)
+        if (row != null) {
+            initial_balance = sqlite_row_get_real(row, 0, 0.0)
+            print("  Initial balance for user 1: $" + initial_balance)
+        }
+        sqlite_free_result(result)
+    }
+    
+    # Begin transaction
+    let transaction = sqlite_begin_transaction(db, TRANSACTION_DEFERRED)
+    if (transaction != null) {
+        print("✓ Transaction started")
+        
+        # Perform operations within transaction
+        let deduct_result = sqlite_execute_sql(db, "UPDATE users SET balance = balance - 250.00 WHERE id = 1")
+        let add_order_result = sqlite_execute_sql(db, "INSERT INTO orders (user_id, product, amount) VALUES (1, 'Transaction Test Item', 250.00)")
+        
+        if (deduct_result >= 0 && add_order_result >= 0) {
+            print("✓ Transaction operations completed")
+            
+            # Commit transaction
+            if (sqlite_commit_transaction(transaction)) {
+                print("✓ Transaction committed successfully")
+                
+                # Verify changes
+                result = sqlite_execute_query(db, "SELECT balance FROM users WHERE id = 1")
+                if (result != null) {
+                    let row = sqlite_result_first_row(result)
+                    if (row != null) {
+                        let new_balance = sqlite_row_get_real(row, 0, 0.0)
+                        print("  New balance for user 1: $" + new_balance)
+                        
+                        if (new_balance == initial_balance - 250.00) {
+                            print("✓ Balance updated correctly")
+                        } else {
+                            print("✗ Balance update incorrect")
+                        }
+                    }
+                    sqlite_free_result(result)
+                }
+            } else {
+                print("✗ Transaction commit failed: " + sqlite_get_last_error())
+            }
+        } else {
+            print("✗ Transaction operations failed, rolling back")
+            sqlite_rollback_transaction(transaction)
+        }
+    } else {
+        print("✗ Failed to start transaction: " + sqlite_get_last_error())
+    }
+    
+    # Test rollback scenario
+    transaction = sqlite_begin_transaction(db, TRANSACTION_IMMEDIATE)
+    if (transaction != null) {
+        print("  Testing rollback scenario...")
+        
+        sqlite_execute_sql(db, "UPDATE users SET balance = 0 WHERE id = 1")  # Intentional bad operation
+        
+        if (sqlite_rollback_transaction(transaction)) {
+            print("✓ Transaction rolled back successfully")
+            
+            # Verify rollback
+            result = sqlite_execute_query(db, "SELECT balance FROM users WHERE id = 1")
+            if (result != null) {
+                let row = sqlite_result_first_row(result)
+                if (row != null) {
+                    let balance_after_rollback = sqlite_row_get_real(row, 0, 0.0)
+                    if (balance_after_rollback > 0) {
+                        print("✓ Rollback worked - balance preserved: $" + balance_after_rollback)
+                    } else {
+                        print("✗ Rollback failed - balance was changed")
+                    }
+                }
+                sqlite_free_result(result)
+            }
+        }
+    }
+}
+
+# Test schema introspection
+function test_schema_operations() {
+    print("\n=== Testing Schema Operations ===")
+    
+    # Check if tables exist
+    if (sqlite_table_exists(db, "users")) {
+        print("✓ Users table exists")
+    } else {
+        print("✗ Users table not found")
+    }
+    
+    if (sqlite_table_exists(db, "nonexistent_table")) {
+        print("✗ Nonexistent table incorrectly reported as existing")
+    } else {
+        print("✓ Nonexistent table correctly reported as missing")
+    }
+    
+    # Get table list
+    let table_count = 0
+    let tables = sqlite_get_table_list(db, table_count)
+    if (tables != null && table_count > 0) {
+        print("✓ Found " + table_count + " tables:")
+        for (i = 0; i < table_count; i++) {
+            print("  - " + tables[i])
+        }
+    } else {
+        print("✗ Failed to get table list")
+    }
+    
+    # Get table information
+    let table_info = sqlite_get_table_info(db, "users")
+    if (table_info != null) {
+        print("✓ Table info for 'users':")
+        print("  Columns: " + table_info.column_count)
+        print("  Row count: " + table_info.row_count)
+        
+        for (i = 0; i < table_info.column_count; i++) {
+            let col = table_info.columns[i]
+            print("    " + col.name + ": type=" + col.type + 
+                  ", not_null=" + col.not_null + ", pk=" + col.primary_key)
+        }
+        
+        sqlite_free_table_info(table_info)
+    } else {
+        print("✗ Failed to get table info: " + sqlite_get_last_error())
+    }
+    
+    # Test row count
+    let row_count = sqlite_get_table_row_count(db, "users")
+    if (row_count >= 0) {
+        print("✓ Users table has " + row_count + " rows")
+    } else {
+        print("✗ Failed to get row count: " + sqlite_get_last_error())
+    }
+}
+
+# Test utility functions
+function test_utilities() {
+    print("\n=== Testing Utility Functions ===")
+    
+    # Test string escaping
+    let unsafe_string = "Robert'); DROP TABLE users; --"
+    let escaped = sqlite_escape_string(unsafe_string)
+    if (escaped != null) {
+        print("✓ String escaped successfully")
+        print("  Original: " + unsafe_string)
+        print("  Escaped:  " + escaped)
+    } else {
+        print("✗ String escaping failed")
+    }
+    
+    # Test database statistics
+    let stats = sqlite_get_database_stats(db)
+    if (stats != null) {
+        print("✓ Database statistics:")
+        print("  Page count: " + stats.page_count)
+        print("  Page size: " + stats.page_size + " bytes")
+        print("  SQLite version: " + stats.sqlite_version)
+        
+        sqlite_free_database_stats(stats)
+    } else {
+        print("✗ Failed to get database stats: " + sqlite_get_last_error())
+    }
+    
+    # Test integrity check
+    if (sqlite_check_integrity(db)) {
+        print("✓ Database integrity check passed")
+    } else {
+        print("✗ Database integrity check failed")
+    }
+    
+    # Test analyze
+    if (sqlite_analyze_database(db)) {
+        print("✓ Database analysis completed")
+    } else {
+        print("✗ Database analysis failed: " + sqlite_get_last_error())
+    }
+    
+    # Test vacuum
+    if (sqlite_vacuum_database(db)) {
+        print("✓ Database vacuum completed")
+    } else {
+        print("✗ Database vacuum failed: " + sqlite_get_last_error())
+    }
+}
+
+# Test complex query with JOIN
+function test_advanced_queries() {
+    print("\n=== Testing Advanced Queries ===")
+    
+    # Query with JOIN
+    let join_query = "SELECT u.name, u.email, o.product, o.amount, o.order_date " +
+                    "FROM users u " +
+                    "JOIN orders o ON u.id = o.user_id " +
+                    "WHERE u.balance > 1000 " +
+                    "ORDER BY o.amount DESC"
+    
+    let result = sqlite_execute_query(db, join_query)
+    if (result != null) {
+        print("✓ JOIN query executed successfully")
+        
+        let row = sqlite_result_first_row(result)
+        let count = 0
+        while (row != null) {
+            count++
+            let name = sqlite_row_get_text(row, 0)
+            let product = sqlite_row_get_text(row, 2)
+            let amount = sqlite_row_get_real(row, 3, 0.0)
+            
+            print("  " + count + ": " + name + " ordered " + product + " for $" + amount)
+            
+            row = sqlite_result_next_row(result)
+        }
+        
+        print("  Found " + count + " orders from high-balance users")
+        sqlite_free_result(result)
+    } else {
+        print("✗ JOIN query failed: " + sqlite_get_last_error())
+    }
+    
+    # Subquery example
+    let subquery = "SELECT name, balance FROM users " +
+                  "WHERE balance > (SELECT AVG(balance) FROM users)"
+    
+    result = sqlite_execute_query(db, subquery)
+    if (result != null) {
+        print("✓ Subquery executed successfully")
+        
+        let row = sqlite_result_first_row(result)
+        while (row != null) {
+            let name = sqlite_row_get_text(row, 0)
+            let balance = sqlite_row_get_real(row, 1, 0.0)
+            
+            print("  Above-average user: " + name + " ($" + balance + ")")
+            
+            row = sqlite_result_next_row(result)
+        }
+        
+        sqlite_free_result(result)
+    } else {
+        print("✗ Subquery failed: " + sqlite_get_last_error())
+    }
+}
+
+# Cleanup function
+function cleanup_database() {
+    print("\n=== Cleaning Up ===")
+    
+    if (db != null) {
+        if (sqlite_close_database(db)) {
+            print("✓ Database closed successfully")
+        } else {
+            print("✗ Failed to close database: " + sqlite_get_last_error())
+        }
+        db = null
+    }
+}
+
+# Main execution function
+function main() {
+    print("Kuyil SQLite Utils Integration Demo")
+    print("==================================")
+    
+    # Display version information
+    print("SQLite version: " + sqlite_get_version())
+    print("SQLite Utils version: " + sqlite_utils_get_version())
+    
+    if (init_database()) {
+        test_basic_queries()
+        test_prepared_statements()
+        test_transactions()
+        test_schema_operations()
+        test_utilities()
+        test_advanced_queries()
+    } else {
+        print("✗ Database initialization failed, skipping tests")
+    }
+    
+    cleanup_database()
+    
+    print("\n🎉 SQLite utils demo completed!")
+    print("The SQLite library is now integrated with Kuyil and ready for database operations.")
+}
+
+# Run the demo
+main()
