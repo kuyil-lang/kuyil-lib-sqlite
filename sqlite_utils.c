@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include "sqlite_utils.h"
 #include <assert.h>
 
@@ -23,6 +24,7 @@ struct SqliteResult {
     char** column_names;
     SqliteValueType* column_types;
     bool has_data;
+    SqliteRow* last_row;  /* Track last allocated row for automatic cleanup */
 };
 
 struct SqliteRow {
@@ -301,6 +303,7 @@ SqliteResult* sqlite_execute_query(SqliteDatabase* db, const char* sql) {
     query_result->row_count = 0;
     query_result->current_row = -1;
     query_result->has_data = false;
+    query_result->last_row = NULL;  /* Initialize row tracker */
     
     // Allocate arrays for column information
     query_result->column_names = malloc(query_result->column_count * sizeof(char*));
@@ -399,6 +402,7 @@ SqliteResult* sqlite_execute_statement(SqliteStatement* stmt) {
     result->row_count = 0;
     result->current_row = -1;
     result->has_data = false;
+    result->last_row = NULL;  /* Initialize row tracker */
     
     // Allocate column information arrays
     result->column_names = malloc(result->column_count * sizeof(char*));
@@ -600,6 +604,12 @@ SqliteRow* sqlite_result_first_row(SqliteResult* result) {
         return NULL;
     }
     
+    /* Free previous row if exists */
+    if (result->last_row) {
+        free(result->last_row);
+        result->last_row = NULL;
+    }
+    
     sqlite3_reset(result->stmt);
     if (sqlite3_step(result->stmt) == SQLITE_ROW) {
         result->current_row = 0;
@@ -612,6 +622,7 @@ SqliteRow* sqlite_result_first_row(SqliteResult* result) {
         
         row->result = result;
         row->row_index = 0;
+        result->last_row = row;  /* Track for cleanup */
         return row;
     }
     
@@ -621,6 +632,12 @@ SqliteRow* sqlite_result_first_row(SqliteResult* result) {
 SqliteRow* sqlite_result_next_row(SqliteResult* result) {
     if (!result || !result->has_data) {
         return NULL;
+    }
+    
+    /* Free previous row if exists */
+    if (result->last_row) {
+        free(result->last_row);
+        result->last_row = NULL;
     }
     
     if (sqlite3_step(result->stmt) == SQLITE_ROW) {
@@ -634,6 +651,7 @@ SqliteRow* sqlite_result_next_row(SqliteResult* result) {
         
         row->result = result;
         row->row_index = result->current_row;
+        result->last_row = row;  /* Track for cleanup */
         return row;
     }
     
@@ -648,17 +666,31 @@ void sqlite_result_reset(SqliteResult* result) {
 }
 
 void sqlite_free_result(SqliteResult* result) {
-    if (result) {
-        if (result->column_names) {
-            for (int i = 0; i < result->column_count; i++) {
+    if (!result) {
+        return;
+    }
+    
+    /* Free last allocated row if exists */
+    if (result->last_row) {
+        free(result->last_row);
+        result->last_row = NULL;
+    }
+    
+    if (result->column_names) {
+        for (int i = 0; i < result->column_count; i++) {
+            if (result->column_names[i]) {
                 free(result->column_names[i]);
             }
-            free(result->column_names);
         }
-        free(result->column_types);
-        // Note: We don't finalize stmt here as it might be owned by a SqliteStatement
-        free(result);
+        free(result->column_names);
     }
+    
+    if (result->column_types) {
+        free(result->column_types);
+    }
+    
+    // Note: We don't finalize stmt here as it might be owned by a SqliteStatement
+    free(result);
 }
 
 // ============================================================================

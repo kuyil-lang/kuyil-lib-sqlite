@@ -2,13 +2,13 @@
 # Compatible with Makefile.libs structure
 
 CC ?= gcc
-CFLAGS ?= -Wall -Wextra -O2 -fPIC -std=c99
+CFLAGS ?= -Wall -Wextra -O2 -fPIC -std=c99 -I../..
 LDFLAGS = -shared
 LIBS = -lsqlite3
 TARGET ?= ../../libs/libkylsqlite.so
 
-# Source files
-SOURCES = sqlite_utils.c
+# Source files - includes both SQLite utils and Kuyil bindings
+SOURCES = sqlite_utils.c kuyil_bindings.c
 OBJECTS = $(SOURCES:.c=.o)
 HEADERS = sqlite_utils.h
 
