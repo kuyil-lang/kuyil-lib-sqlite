@@ -4,6 +4,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// Kuyil interface signature metadata
+__attribute__((visibility("default")))
+const char* kyl_interface_signature_text = 
+    "sqlite openDatabase(path: string, flags: int32) -> int32\n"
+    "sqlite closeDatabase(handle: int32) -> int32\n"
+    "sqlite executeSql(handle: int32, sql: string) -> int32\n"
+    "sqlite executeQuery(handle: int32, sql: string) -> int32\n"
+    "result firstRow(handle: int32) -> int32\n"
+    "result nextRow(handle: int32) -> int32\n"
+    "row getInt(rowHandle: int32, colIndex: int32) -> int32\n"
+    "row getText(rowHandle: int32, colIndex: int32) -> string\n"
+    "row getReal(rowHandle: int32, colIndex: int32) -> float64\n"
+    "sqlite freeResult(handle: int32) -> int32\n"
+    "sqlite getLastError(handle: int32) -> string\n";
+
 /* Pointer registry to convert between Kuyil numbers and C pointers */
 #define MAX_POINTERS 1024
 static void* g_pointer_registry[MAX_POINTERS];
@@ -244,3 +259,16 @@ Value kyl_sqlite_get_last_error(int arg_count, Value* args) {
     }
     return result;
 }
+
+// LowerCamel aliases for cleaner interface
+Value openDatabase(int arg_count, Value* args) { return kyl_sqlite_open_database(arg_count, args); }
+Value closeDatabase(int arg_count, Value* args) { return kyl_sqlite_close_database(arg_count, args); }
+Value executeSql(int arg_count, Value* args) { return kyl_sqlite_execute_sql(arg_count, args); }
+Value executeQuery(int arg_count, Value* args) { return kyl_sqlite_execute_query(arg_count, args); }
+Value firstRow(int arg_count, Value* args) { return kyl_sqlite_result_first_row(arg_count, args); }
+Value nextRow(int arg_count, Value* args) { return kyl_sqlite_result_next_row(arg_count, args); }
+Value getInt(int arg_count, Value* args) { return kyl_sqlite_row_get_int(arg_count, args); }
+Value getText(int arg_count, Value* args) { return kyl_sqlite_row_get_text(arg_count, args); }
+Value getReal(int arg_count, Value* args) { return kyl_sqlite_row_get_real(arg_count, args); }
+Value freeResult(int arg_count, Value* args) { return kyl_sqlite_free_result(arg_count, args); }
+Value getLastError(int arg_count, Value* args) { return kyl_sqlite_get_last_error(arg_count, args); }
