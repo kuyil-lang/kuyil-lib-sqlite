@@ -51,7 +51,9 @@ static void unregister_pointer(int handle) {
 Value kyl_sqlite_open_database(int arg_count, Value* args) {
     if (arg_count < 2 || args[0].type != VALUE_STRING || args[1].type != VALUE_NUMBER) {
         fprintf(stderr, "sqlite_open_database requires (string filename, int flags)\n");
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
@@ -70,7 +72,9 @@ Value kyl_sqlite_open_database(int arg_count, Value* args) {
 /* Kuyil wrapper: sqlite_close_database(db) */
 Value kyl_sqlite_close_database(int arg_count, Value* args) {
     if (arg_count < 1 || args[0].type != VALUE_NUMBER) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
@@ -81,14 +85,18 @@ Value kyl_sqlite_close_database(int arg_count, Value* args) {
         unregister_pointer(handle);
     }
     
-    Value result = {VALUE_NIL};
+    Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
     return result;
 }
 
 /* Kuyil wrapper: sqlite_execute_sql(db, sql) -> success (1/0) */
 Value kyl_sqlite_execute_sql(int arg_count, Value* args) {
     if (arg_count < 2 || args[0].type != VALUE_NUMBER || args[1].type != VALUE_STRING) {
-        Value result = {VALUE_NUMBER};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NUMBER;
         result.as.number = 0;
         return result;
     }
@@ -108,7 +116,9 @@ Value kyl_sqlite_execute_sql(int arg_count, Value* args) {
 /* Kuyil wrapper: sqlite_execute_query(db, sql) -> result handle */
 Value kyl_sqlite_execute_query(int arg_count, Value* args) {
     if (arg_count < 2 || args[0].type != VALUE_NUMBER || args[1].type != VALUE_STRING) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
@@ -128,7 +138,9 @@ Value kyl_sqlite_execute_query(int arg_count, Value* args) {
 /* Kuyil wrapper: sqlite_result_first_row(result) -> row handle */
 Value kyl_sqlite_result_first_row(int arg_count, Value* args) {
     if (arg_count < 1 || args[0].type != VALUE_NUMBER) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
@@ -147,7 +159,9 @@ Value kyl_sqlite_result_first_row(int arg_count, Value* args) {
 /* Kuyil wrapper: sqlite_result_next_row(result) -> row handle */
 Value kyl_sqlite_result_next_row(int arg_count, Value* args) {
     if (arg_count < 1 || args[0].type != VALUE_NUMBER) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
@@ -166,7 +180,9 @@ Value kyl_sqlite_result_next_row(int arg_count, Value* args) {
 /* Kuyil wrapper: sqlite_row_get_int(row, column_index) -> integer */
 Value kyl_sqlite_row_get_int(int arg_count, Value* args) {
     if (arg_count < 2 || args[0].type != VALUE_NUMBER || args[1].type != VALUE_NUMBER) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
@@ -185,7 +201,9 @@ Value kyl_sqlite_row_get_int(int arg_count, Value* args) {
 /* Kuyil wrapper: sqlite_row_get_text(row, column_index) -> string */
 Value kyl_sqlite_row_get_text(int arg_count, Value* args) {
     if (arg_count < 2 || args[0].type != VALUE_NUMBER || args[1].type != VALUE_NUMBER) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
@@ -208,7 +226,9 @@ Value kyl_sqlite_row_get_text(int arg_count, Value* args) {
 /* Kuyil wrapper: sqlite_row_get_real(row, column_index) -> real number */
 Value kyl_sqlite_row_get_real(int arg_count, Value* args) {
     if (arg_count < 2 || args[0].type != VALUE_NUMBER || args[1].type != VALUE_NUMBER) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
@@ -227,7 +247,9 @@ Value kyl_sqlite_row_get_real(int arg_count, Value* args) {
 /* Kuyil wrapper: sqlite_free_result(result) */
 Value kyl_sqlite_free_result(int arg_count, Value* args) {
     if (arg_count < 1 || args[0].type != VALUE_NUMBER) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
@@ -239,7 +261,9 @@ Value kyl_sqlite_free_result(int arg_count, Value* args) {
         unregister_pointer(result_handle);
     }
     
-    Value result = {VALUE_NIL};
+    Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
     return result;
 }
 
